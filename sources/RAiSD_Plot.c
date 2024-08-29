@@ -63,36 +63,42 @@ int RSDPlot_checkRscript (void)
 
 void RSDPlot_printRscriptVersion (RSDCommandLine_t * RSDCommandLine, FILE * fpOut)
 {
-	if(RSDCommandLine->createPlot==0 && RSDCommandLine->createMPlot==0)
+	if(RSDCommandLine->createPlot == 0 && RSDCommandLine->createMPlot == 0)
 		return;
 
 	fprintf(fpOut, " Rscript: ");
 
-	FILE * fp;
-	fp = fopen("RscriptVersion.txt", "r");
-	assert(fp==NULL);
-	
+	char tempFilename[] = "/tmp/RscriptVersionXXXXXX.txt";  // Template for unique temp file
+
+	// Create a unique temporary file
+	int fd = mkstemp(tempFilename);
+	assert(fd != -1);
+
+	close(fd); // Close the file descriptor, we'll use fopen later
+
+	// Run the Rscript command and redirect its output to the unique temp file
 #ifdef _C1
-	int ret = system("Rscript --version > /dev/null 2>RscriptVersion.txt");
-	assert(ret!=-1);
-	ret = ret;
+	int ret = system("Rscript --version > /dev/null 2>tempFilename");
+	assert(ret != -1);
 #else
-	fp = popen("Rscript --version > /dev/null 2>RscriptVersion.txt", "r");
-	assert(fp!=NULL);
+	char command[256];
+	snprintf(command, sizeof(command), "Rscript --version > /dev/null 2>%s", tempFilename);
+	FILE *fp = popen(command, "r");
+	assert(fp != NULL);
 
 	int ret = pclose(fp);
-	assert(ret!=-1);
-	ret = ret;
+	assert(ret != -1);
 #endif
 
-	fp = fopen("RscriptVersion.txt", "r");
-	assert(fp!=NULL);
-	
-	char tchar;
+	// Open the unique temp file to read the Rscript version
+	FILE *fp = fopen(tempFilename, "r");
+	assert(fp != NULL);
 
+	// Print the Rscript version to the output file
+	char tchar;
 	tchar = (char)fgetc(fp);	
 
-	while(tchar!=EOF)
+	while(tchar != EOF)
 	{
 		fprintf(fpOut, "%c", tchar);
 		tchar = (char)fgetc(fp);
@@ -100,9 +106,10 @@ void RSDPlot_printRscriptVersion (RSDCommandLine_t * RSDCommandLine, FILE * fpOu
 
 	fclose(fp);
 
-	ret = remove("RscriptVersion.txt");
-	assert(ret==0);	
-	
+	// Remove the temporary file
+	ret = remove(tempFilename);
+	assert(ret == 0);
+
 	fflush(fpOut);
 }
 
